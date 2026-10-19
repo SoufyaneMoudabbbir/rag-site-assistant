@@ -62,6 +62,27 @@ async def stream_answer(messages: list[dict]) -> AsyncIterator[str]:
             yield chunk.choices[0].delta.content
 
 
+LANGUAGE_NAMES = {"fr": "French", "en": "English", "es": "Spanish", "de": "German"}
+
+QUERY_PROMPT = """Rewrite the website visitor's question as a short search query in {language}, for the website's \
+search engine. Translate it, keep product names, numbers and places, drop politeness. Reply with the query only."""
+
+
+async def translate_query(question: str, language: str) -> str | None:
+    """A question in another language than the site's, as a short search query in the site's language."""
+    resp = await client().with_options(timeout=10, max_retries=0).chat.completions.create(
+        model=config.LLM_MODEL,
+        messages=[
+            {"role": "system", "content": QUERY_PROMPT.format(language=LANGUAGE_NAMES.get(language, language))},
+            {"role": "user", "content": question},
+        ],
+        temperature=0,
+        max_tokens=40,
+    )
+    text = (resp.choices[0].message.content or "").strip().strip('"«»').strip()
+    return text[:200] or None
+
+
 class MarkerFilter:
     """Removes the handoff marker from a token stream, even when it arrives split
     across several tokens, without delaying the rest of the text."""

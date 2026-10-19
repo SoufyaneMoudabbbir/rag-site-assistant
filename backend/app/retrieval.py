@@ -48,6 +48,33 @@ def tokenize(text: str) -> list[str]:
     return tokens
 
 
+# Frequent words that tell a few languages apart. Only used to skip translating a
+# question that is already in the site's language, so a rough guess is enough.
+LANGUAGE_WORDS = {
+    "fr": set("""je tu il nous vous ils le la les un une des du est sont avez avec pour dans sur pas que qui quel
+        quelle quels quelles ce cette mon ma mes votre vos bonjour merci oui non combien comment livrez faites peux""".split()),
+    "en": set("""i you he we they the is are do does did have has an and with for in on of to not it what which who how
+        where when this that my your our hello thanks yes no any can ship much""".split()),
+    "es": set("""yo usted ustedes el los las una es son tienen hay con por para que como cuanto donde envian hola
+        gracias si vela velas""".split()),
+    "de": set("""ich du sie wir ihr der die das ein eine ist sind haben habt mit fur und nicht wie wo wann kerze
+        kerzen hallo danke ja nein auch""".split()),
+}
+
+
+def is_in_language(text: str, language: str) -> bool:
+    """Light guess: is the text written in this language? Text without clear signs
+    (a product name, a few keywords) counts as yes."""
+    letters = [c for c in text if c.isalpha()]
+    non_latin = sum(not unicodedata.name(c, "").startswith("LATIN") for c in letters)
+    if language in LANGUAGE_WORDS and non_latin > len(letters) / 2:
+        return False  # Arabic, Cyrillic, Chinese... on a site written in Latin letters
+    words = re.findall(r"[a-z]+", _fold(text))
+    counts = {lang: sum(w in vocab for w in words) for lang, vocab in LANGUAGE_WORDS.items()}
+    others = max((n for lang, n in counts.items() if lang != language), default=0)
+    return others <= counts.get(language, 0)
+
+
 @dataclass
 class Hit:
     chunk_id: int
@@ -127,3 +154,13 @@ def invalidate(site_id: str) -> None:
 
 def search(site_id: str, query: str, k: int = 5) -> list[Hit]:
     return get_index(site_id).search(query, k)
+
+
+def merge(*results: list[Hit], k: int) -> list[Hit]:
+    """Combine several searches for one question (original and translated): best score per passage."""
+    best: dict[int, Hit] = {}
+    for hits in results:
+        for h in hits:
+            if h.chunk_id not in best or h.score > best[h.chunk_id].score:
+                best[h.chunk_id] = h
+    return sorted(best.values(), key=lambda h: -h.score)[:k]

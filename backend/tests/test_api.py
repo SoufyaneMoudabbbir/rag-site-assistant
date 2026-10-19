@@ -35,6 +35,14 @@ def test_chat_streams_answer_with_sources(client, fake_llm):
     assert ev["done"]["handoff"] is False
 
 
+def test_question_in_another_language_finds_sources_through_translation(client, fake_llm, fake_translation):
+    fake_translation.table["Do you have a vanilla candle?"] = "bougie vanille"
+    fake_llm.append("Yes, **Bois de santal** has Madagascar vanilla.")
+    _, ev = chat(client, "Do you have a vanilla candle?")
+    assert ev["start"]["sources"][0]["title"] == "Bois de santal"
+    assert ev["text"] == "Yes, **Bois de santal** has Madagascar vanilla."
+
+
 def test_handoff_marker_is_hidden_and_flagged(client, fake_llm):
     fake_llm.append("Je transmets votre demande de devis à l'équipe. [[HANDOFF]]")
     _, ev = chat(client, "Je veux 50 bougies avec mon logo")

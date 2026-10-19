@@ -1,5 +1,6 @@
 import os
 import tempfile
+from types import SimpleNamespace
 
 import pytest
 
@@ -21,7 +22,22 @@ def client():
 
 
 @pytest.fixture
-def fake_llm(monkeypatch):
+def fake_translation(monkeypatch):
+    """Replace the LLM query translation with a fixed table, and record what it was asked."""
+    from app import llm
+
+    fake = SimpleNamespace(table={}, asked=[])
+
+    async def translate(question, _language):
+        fake.asked.append(question)
+        return fake.table.get(question)
+
+    monkeypatch.setattr(llm, "translate_query", translate)
+    return fake
+
+
+@pytest.fixture
+def fake_llm(monkeypatch, fake_translation):
     """Replace the real LLM with a scripted reply streamed in small pieces."""
     from app import llm
 

@@ -1,5 +1,6 @@
 """FastAPI app: public chat API for the widget, admin API, and static files."""
 
+import asyncio
 import json
 import re
 import uuid
@@ -93,6 +94,29 @@ def pick_sources(hits: list[retrieval.Hit]) -> list[dict]:
     return sources
 
 
+async def find_passages(site: dict, query: str) -> list[retrieval.Hit]:
+    """Hybrid search. A question in another language than the site's is also searched
+    translated: across languages, generic words ("candle") outweigh the ones that
+    matter ("vanilla")."""
+    def search(q: str):
+        return run_in_threadpool(retrieval.search, site["id"], q, config.TOP_K)
+
+    if retrieval.is_in_language(query, site["language"]):
+        return await search(query)
+    hits, translated = await asyncio.gather(search(query), translate(query, site["language"]))
+    if not translated:
+        return hits
+    return retrieval.merge(hits, await search(translated), k=config.TOP_K)
+
+
+async def translate(query: str, language: str) -> str | None:
+    try:
+        return await llm.translate_query(query, language)
+    except Exception as e:  # the original question alone still gives an answer
+        print(f"Query translation error: {type(e).__name__}: {e}")
+        return None
+
+
 @app.post("/api/chat")
 async def chat(req: ChatRequest, request: Request):
     site = get_site_or_404(req.site_id)
@@ -119,7 +143,7 @@ async def chat(req: ChatRequest, request: Request):
     # Short follow-ups ("et en Suisse ?") are searched together with the previous question.
     last_user = next((m["content"] for m in reversed(history) if m["role"] == "user"), "")
     query = f"{last_user} {question}" if len(question.split()) < 6 and last_user else question
-    hits = await run_in_threadpool(retrieval.search, site["id"], query, config.TOP_K)
+    hits = await find_passages(site, query)
     sources = pick_sources(hits)
     messages = llm.build_messages(site, hits, history, question)
 
@@ -364,8 +388,7 @@ class SearchRequest(BaseModel):
 @app.post("/api/admin/sites/{site_id}/search")
 async def admin_search(site_id: str, req: SearchRequest, _: str = Depends(require_viewer)):
     """Retrieval debugger: which passages would the assistant read for this question?"""
-    get_site_or_404(site_id)
-    hits = await run_in_threadpool(retrieval.search, site_id, req.query, config.TOP_K)
+    hits = await find_passages(get_site_or_404(site_id), req.query)
     return [{"heading": h.heading, "url": h.url, "text": h.text, "score": round(h.score, 3),
              "similarity": round(h.similarity, 3), "keyword_score": round(h.keyword_score, 2)} for h in hits]
 

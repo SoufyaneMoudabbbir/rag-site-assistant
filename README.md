@@ -58,7 +58,7 @@ flowchart LR
 
 1. **Ingestion.** HTML is split along its structure: each product card, FAQ entry and heading section becomes one passage, prefixed with its page title and heading so it makes sense on its own, and linked to its anchor.
 2. **Embeddings.** Passages are embedded with [`paraphrase-multilingual-mpnet-base-v2`](https://huggingface.co/sentence-transformers/paraphrase-multilingual-mpnet-base-v2) through [fastembed](https://github.com/qdrant/fastembed) (ONNX, CPU only, no API call), so "Vous envoyez à Bruxelles ?" and "Do you ship to Switzerland?" both match the delivery section.
-3. **Hybrid retrieval.** Cosine similarity is combined with BM25 keyword scores (accent folding and light French stemming), so exact product names and prices are found as reliably as paraphrases.
+3. **Hybrid retrieval.** Cosine similarity is combined with BM25 keyword scores (accent folding and light French stemming), so exact product names and prices are found as reliably as paraphrases. A question in another language than the site's is also searched translated into the site's language (see below).
 4. **Grounded answer.** The top passages go to the LLM with strict rules: answer only from them, in the visitor's language, briefly, and add a hidden handoff marker when a human is needed. Tokens stream to the widget over Server-Sent Events; the marker is filtered out of the stream even when it arrives split across tokens.
 
 The LLM is any OpenAI-compatible API. It defaults to DeepSeek, and OpenAI, Mistral or a local Ollama server work by changing two variables.
@@ -159,7 +159,7 @@ A GitHub Pages workflow (`.github/workflows/pages.yml`, run manually) can also p
 - **Server-side conversation history.** The widget only sends the new question and a conversation id, so visitors can't rewrite the history the model sees.
 - **One instance.** Admin sessions and rate limits live in memory, which suits a small deployment. Running several instances would need them in Redis or the database.
 - **No automatic re-crawl yet.** Re-importing a URL replaces its previous version; scheduled re-imports would be a natural next step.
-- **Cross-language questions about specific products.** A question in another language than the site ("Do you have a vanilla candle?" on a French site) can be dominated by generic words. The assistant then says it can't confirm and offers a handoff rather than guessing. Translating the question into the site's language before searching would fix it.
+- **Cross-language questions are also searched translated.** Across languages, generic words dominate: "Do you have a vanilla candle?" on a French site matches "candle" everywhere and misses the one product with vanilla. When a light word-list check says the question isn't in the site's language, a short LLM call (40 tokens, run alongside the first search) rewrites it as a search query in the site's language, and both searches are merged by best score. Questions already in the site's language skip the call. The check is rough: a bare keyword question in another language ("vanilla candle") is searched as is, and if the translation call fails, the original search is used alone. The answer is still written in the visitor's language.
 
 ## Author
 
