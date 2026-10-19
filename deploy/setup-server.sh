@@ -20,10 +20,12 @@ if ! command -v docker >/dev/null; then
 fi
 sudo systemctl enable --now docker
 
-# Oracle's Ubuntu images block everything except SSH in iptables: open HTTP and HTTPS.
-for port in 80 443; do
-  sudo iptables -C INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null \
-    || sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport "$port" -j ACCEPT
+# Oracle's Ubuntu images end the INPUT chain with a REJECT rule that blocks everything
+# except SSH: open HTTP and HTTPS just before it.
+reject_line=$(sudo iptables -L INPUT --line-numbers -n | awk '/REJECT/ {print $1; exit}')
+for port in 443 80; do
+  sudo iptables -C INPUT -m state --state NEW -p tcp --dport "$port" -j ACCEPT 2>/dev/null \
+    || sudo iptables -I INPUT "${reject_line:-1}" -m state --state NEW -p tcp --dport "$port" -j ACCEPT
 done
 sudo netfilter-persistent save
 
