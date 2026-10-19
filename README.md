@@ -6,7 +6,7 @@ Built for web and marketing agencies: import a client's pages, PDFs and FAQ, pas
 
 > 🇫🇷 *Un assistant IA qui répond aux visiteurs à partir du contenu du site, installable en une ligne sur n'importe quel site. Pensé pour les agences, en marque blanche : vous gardez la relation client, l'assistant s'installe sous votre marque.*
 
-**Live demo:** coming soon. Try the fictional candle shop *Atelier Lumen* and its dashboard (password `demo`, read-only).
+**Live demo: https://soufyane-ai.duckdns.org**, the fictional candle shop *Atelier Lumen*. Ask the assistant in the bottom-right corner, then open the [dashboard](https://soufyane-ai.duckdns.org/admin/) with the password `demo` (read-only).
 
 <p align="center">
   <img src="docs/screenshots/widget-desktop.png" alt="The assistant answering a delivery question on the demo shop, with a link to the delivery section" width="760">
@@ -133,12 +133,25 @@ cd backend && ../.venv/bin/python -m pytest
 
 ## Deploy
 
-The `Dockerfile` builds the widget and dashboard, installs the API, and downloads the embedding model at build time so the container starts quickly. It listens on `$PORT` (7860 by default, the port Hugging Face Spaces expects).
+**On one server, with automatic HTTPS** (how the live demo runs, on an Oracle Cloud free ARM instance):
+
+```bash
+git clone https://github.com/SoufyaneMoudabbbir/rag-site-assistant.git && cd rag-site-assistant
+./deploy/setup-server.sh          # once: Docker, firewall, automatic security updates, swap (Ubuntu)
+cp .env.example .env              # add LLM_API_KEY, ADMIN_PASSWORD and DOMAIN=your.domain
+docker compose up -d --build      # the app behind Caddy, which gets and renews the certificate
+```
+
+Point the domain's DNS at the server first. Containers restart on their own after a crash or a reboot; `./deploy/update.sh` deploys the latest commit.
+
+**Anywhere Docker runs:** the `Dockerfile` builds the widget and dashboard, installs the API, and downloads the embedding model at build time, so the container starts quickly. It listens on `$PORT` (7860 by default).
 
 ```bash
 docker build -t site-assistant .
 docker run -p 7860:7860 -e LLM_API_KEY=... -e ADMIN_PASSWORD=... -v $(pwd)/data:/app/data site-assistant
 ```
+
+A GitHub Pages workflow (`.github/workflows/pages.yml`, run manually) can also publish the shop, widget and dashboard as static files when the API is hosted separately.
 
 ## Design choices and limits
 
@@ -146,6 +159,7 @@ docker run -p 7860:7860 -e LLM_API_KEY=... -e ADMIN_PASSWORD=... -v $(pwd)/data:
 - **Server-side conversation history.** The widget only sends the new question and a conversation id, so visitors can't rewrite the history the model sees.
 - **One instance.** Admin sessions and rate limits live in memory, which suits a small deployment. Running several instances would need them in Redis or the database.
 - **No automatic re-crawl yet.** Re-importing a URL replaces its previous version; scheduled re-imports would be a natural next step.
+- **Cross-language questions about specific products.** A question in another language than the site ("Do you have a vanilla candle?" on a French site) can be dominated by generic words. The assistant then says it can't confirm and offers a handoff rather than guessing. Translating the question into the site's language before searching would fix it.
 
 ## Author
 
