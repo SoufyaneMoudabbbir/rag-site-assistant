@@ -1,0 +1,14 @@
+{$DOMAIN} {
+	encode zstd gzip
+
+	reverse_proxy app:7860 {
+		# Send streamed chat answers (Server-Sent Events) to the browser immediately.
+		flush_interval -1
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+}

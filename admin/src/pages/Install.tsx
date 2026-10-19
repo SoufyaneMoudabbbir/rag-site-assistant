@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, type Site } from "../api";
+import { API_BASE, api, type Site } from "../api";
 import type { PageProps } from "../App";
 
 export default function Install({ site, role, onSiteChange }: PageProps) {
@@ -14,7 +14,7 @@ export default function Install({ site, role, onSiteChange }: PageProps) {
     setSuggestions(site.suggestions.join("\n"));
   }, [site]);
 
-  const snippet = `<script src="${window.location.origin}/widget.js" data-site="${site.id}" defer></script>`;
+  const snippet = `<script src="${API_BASE || window.location.origin}/widget.js" data-site="${site.id}" defer></script>`;
   const set = <K extends keyof Site>(k: K, v: Site[K]) => setForm((f) => ({ ...f, [k]: v }));
 
   const copy = async () => {

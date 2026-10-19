@@ -30,6 +30,8 @@ button { font: inherit; cursor: pointer; }
 }
 .launcher:hover { transform: scale(1.06); }
 .launcher svg { width: 26px; height: 26px; }
+.launcher.loading svg { animation: breathe 1s ease-in-out infinite; }
+@keyframes breathe { 50% { opacity: .35; transform: scale(.85); } }
 
 .teaser {
   position: fixed; right: 20px; bottom: 90px; z-index: 2147483646;

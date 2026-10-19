@@ -5,7 +5,8 @@
  *
  * Optional attributes: data-api (server URL, defaults to where widget.js is
  * served from), data-teaser="true" (shows a small invitation bubble) and
- * data-theme="light" | "dark" | "auto" (default light).
+ * data-theme="light" | "dark" | "auto" (default light) and data-color="#hex"
+ * (button colour before the site settings have loaded).
  */
 import { css } from "./styles";
 
@@ -147,24 +148,45 @@ class SiteAssistant {
     this.storageKey = `site-assistant:${siteId}`;
   }
 
-  async start() {
-    const res = await fetch(`${this.api}/api/sites/${encodeURIComponent(this.siteId)}/config`);
-    if (!res.ok) {
-      console.warn(`[site-assistant] site "${this.siteId}" is not available (${res.status})`);
-      return;
-    }
-    this.config = await res.json();
-    this.t = this.config.language === "en" ? TEXTS.en : TEXTS.fr;
-    this.root.style.setProperty("--c", this.config.color);
-    this.restore();
+  private ready: Promise<boolean> = Promise.resolve(false);
 
+  /** Shows the button at once; the site settings load in the background. Fetching
+   * them also wakes up a server that was asleep, while the visitor reads the page. */
+  start(color?: string) {
+    if (color) this.root.style.setProperty("--c", color);
+    this.restore();
     this.launcher = el("button", { class: "launcher", "aria-label": this.t.open, "aria-expanded": "false" }, ICON_CHAT);
     this.launcher.addEventListener("click", () => this.toggle());
     this.root.appendChild(this.launcher);
 
-    if (this.teaser && !this.history.length) {
-      window.setTimeout(() => this.showTeaser(), 3500);
+    this.ready = this.loadConfig();
+    this.ready.then((ok) => {
+      if (!ok) this.launcher.remove();
+      else if (this.teaser && !this.history.length) window.setTimeout(() => this.showTeaser(), 3500);
+    });
+  }
+
+  private async loadConfig(): Promise<boolean> {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await fetch(`${this.api}/api/sites/${encodeURIComponent(this.siteId)}/config`);
+        if (res.ok) {
+          this.config = await res.json();
+          this.t = this.config.language === "en" ? TEXTS.en : TEXTS.fr;
+          this.root.style.setProperty("--c", this.config.color);
+          this.launcher.setAttribute("aria-label", this.t.open);
+          return true;
+        }
+        if (res.status === 403 || res.status === 404) {
+          console.warn(`[site-assistant] site "${this.siteId}" is not available here (${res.status})`);
+          return false;
+        }
+      } catch {
+        /* server waking up or network hiccup: retry */
+      }
+      await new Promise((r) => window.setTimeout(r, 2000));
     }
+    return false;
   }
 
   // ---------------------------------------------------------- state
@@ -206,7 +228,7 @@ class SiteAssistant {
     this.root.appendChild(teaser);
   }
 
-  private toggle() {
+  private async toggle() {
     this.root.querySelector(".teaser")?.remove();
     if (this.panel) {
       this.panel.remove();
@@ -214,6 +236,15 @@ class SiteAssistant {
       this.launcher.setAttribute("aria-expanded", "false");
       this.launcher.focus();
       return;
+    }
+    if (!this.config) {
+      // Clicked while the server is still waking up: show progress, then open.
+      this.launcher.classList.add("loading");
+      this.launcher.setAttribute("aria-busy", "true");
+      const ok = await this.ready;
+      this.launcher.classList.remove("loading");
+      this.launcher.removeAttribute("aria-busy");
+      if (!ok || this.panel) return;
     }
     this.buildPanel();
     this.launcher.setAttribute("aria-expanded", "true");
@@ -452,7 +483,7 @@ class SiteAssistant {
     return;
   }
   const api = (script.dataset.api || new URL(script.src, window.location.href).origin).replace(/\/$/, "");
-  const boot = () => new SiteAssistant(api, siteId, script.dataset.teaser === "true", script.dataset.theme || "light").start().catch((e) => console.warn("[site-assistant]", e));
+  const boot = () => new SiteAssistant(api, siteId, script.dataset.teaser === "true", script.dataset.theme || "light").start(script.dataset.color);
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
 })();

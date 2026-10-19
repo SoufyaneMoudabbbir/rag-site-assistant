@@ -40,5 +40,5 @@ def seed() -> None:
     for page in DEMO_PAGES:
         path = config.DEMO_SITE_DIR / page
         if path.exists():
-            doc = parse_html(path.read_text(encoding="utf-8"), f"/{page}")
+            doc = parse_html(path.read_text(encoding="utf-8"), page)
             knowledge.add_document(DEMO_SITE["id"], doc, source=f"/{page}")

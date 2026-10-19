@@ -81,6 +81,10 @@ export interface Lead {
   created_at: string;
 }
 
+/** API server. Empty = same origin (served by the backend); set VITE_API_URL when the
+ * dashboard is hosted elsewhere, e.g. on GitHub Pages. */
+export const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+
 const TOKEN_KEY = "site-assistant-admin";
 
 export const session = {
@@ -112,7 +116,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = { ...(init.headers as Record<string, string>) };
   if (token) headers.Authorization = `Bearer ${token}`;
   if (init.body && !(init.body instanceof FormData)) headers["Content-Type"] = "application/json";
-  const res = await fetch(path, { ...init, headers });
+  const res = await fetch(API_BASE + path, { ...init, headers });
   if (!res.ok) {
     let message = `${res.status} ${res.statusText}`;
     try {

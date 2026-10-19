@@ -1,0 +1,64 @@
+# Optional alternative hosting: the demo shop, widget and dashboard on GitHub Pages,
+# with the AI server elsewhere (e.g. a serverless container). Its URL is the
+# repository variable API_URL. Run manually from the Actions tab.
+name: Deploy demo to GitHub Pages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      API_URL: ${{ vars.API_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check the API URL is configured
+        run: test -n "$API_URL" || (echo "Set the repository variable API_URL to the Cloud Run URL" && exit 1)
+
+      - name: Build widget
+        run: cd widget && npm ci && npm run build
+
+      - name: Build dashboard
+        env:
+          VITE_API_URL: ${{ vars.API_URL }}
+        run: cd admin && npm ci && npx tsc -p tsconfig.json && npx vite build --base="/${{ github.event.repository.name }}/admin/"
+
+      - name: Assemble the site
+        run: |
+          mkdir -p _site/admin
+          cp demo-site/* _site/
+          cp widget/dist/widget.js _site/
+          cp -r admin/dist/. _site/admin/
+          # Load the widget from Pages (instant) and send its API calls to the AI server.
+          sed -i "s|<script src=\"/widget.js\"|<script src=\"widget.js\" data-api=\"$API_URL\"|" _site/*.html
+          grep -q "data-api=\"$API_URL\"" _site/index.html
+          touch _site/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
