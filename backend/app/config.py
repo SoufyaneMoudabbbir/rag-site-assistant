@@ -22,7 +22,7 @@ LLM_BASE_URL = os.getenv("LLM_BASE_URL", "").strip() or "https://api.deepseek.co
 LLM_MODEL = os.getenv("LLM_MODEL", "").strip() or "deepseek-flash"
 
 # --- Embeddings (run locally on CPU, no API key needed)
-EMBED_MODEL = os.getenv("EMBED_MODEL", "").strip() or "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+EMBED_MODEL = os.getenv("EMBED_MODEL", "").strip() or "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
 
 # --- Storage
 DATA_DIR = Path(os.getenv("DATA_DIR", "") or ROOT / "data")

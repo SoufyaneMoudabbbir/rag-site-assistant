@@ -57,7 +57,7 @@ flowchart LR
 ```
 
 1. **Ingestion.** HTML is split along its structure: each product card, FAQ entry and heading section becomes one passage, prefixed with its page title and heading so it makes sense on its own, and linked to its anchor.
-2. **Embeddings.** Passages are embedded with [`paraphrase-multilingual-MiniLM-L12-v2`](https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2) through [fastembed](https://github.com/qdrant/fastembed) (ONNX, CPU only, no API call), so "Vous envoyez à Bruxelles ?" and "Do you ship to Switzerland?" both match the delivery section.
+2. **Embeddings.** Passages are embedded with [`paraphrase-multilingual-mpnet-base-v2`](https://huggingface.co/sentence-transformers/paraphrase-multilingual-mpnet-base-v2) through [fastembed](https://github.com/qdrant/fastembed) (ONNX, CPU only, no API call), so "Vous envoyez à Bruxelles ?" and "Do you ship to Switzerland?" both match the delivery section.
 3. **Hybrid retrieval.** Cosine similarity is combined with BM25 keyword scores (accent folding and light French stemming), so exact product names and prices are found as reliably as paraphrases.
 4. **Grounded answer.** The top passages go to the LLM with strict rules: answer only from them, in the visitor's language, briefly, and add a hidden handoff marker when a human is needed. Tokens stream to the widget over Server-Sent Events; the marker is filtered out of the stream even when it arrives split across tokens.
 
@@ -96,7 +96,7 @@ Then open:
 - http://localhost:8000: the demo shop, with the assistant in the bottom-right corner
 - http://localhost:8000/admin: the dashboard (your `ADMIN_PASSWORD`, or `demo` for read-only)
 
-On first start, the embedding model (~220 MB) is downloaded and the demo shop's pages are indexed.
+On first start, the embedding model (~1 GB) is downloaded and the demo shop's pages are indexed.
 
 Run the tests (they use a scripted LLM, so they are free and deterministic):
 
@@ -128,7 +128,7 @@ cd backend && ../.venv/bin/python -m pytest
 | `DEMO_PASSWORD` | `demo` | Read-only dashboard access |
 | `RATE_LIMIT_MESSAGES` / `RATE_LIMIT_WINDOW` | `20` / `600` | Messages per visitor per window (seconds) |
 | `DAILY_MESSAGE_LIMIT` | `500` | All visitors together, per day |
-| `EMBED_MODEL` | multilingual MiniLM | Any fastembed text model |
+| `EMBED_MODEL` | multilingual MPNet | Any fastembed text model |
 | `DATA_DIR` | `./data` | SQLite database location |
 
 ## Deploy

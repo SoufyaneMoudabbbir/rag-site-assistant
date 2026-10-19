@@ -14,8 +14,9 @@ import httpx
 from bs4 import BeautifulSoup, Tag
 from pypdf import PdfReader
 
-MAX_CHUNK_CHARS = 1100
-OVERLAP_CHARS = 150
+# Small passages keep each fact sharp: a price inside a long section gets diluted otherwise.
+MAX_CHUNK_CHARS = 400
+OVERLAP_CHARS = 100
 MIN_CHUNK_CHARS = 12  # short facts ("Horaires : 9h-18h") matter too
 
 USER_AGENT = "Mozilla/5.0 (compatible; SiteAssistantBot/1.0)"

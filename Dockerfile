@@ -21,7 +21,8 @@ COPY backend/requirements.txt backend/requirements.txt
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
 # Download the embedding model at build time, so the container starts fast and offline.
-RUN python -c "from fastembed import TextEmbedding; TextEmbedding('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')"
+ENV EMBED_MODEL=sentence-transformers/paraphrase-multilingual-mpnet-base-v2
+RUN python -c "import os; from fastembed import TextEmbedding; TextEmbedding(os.environ['EMBED_MODEL'])"
 
 COPY backend backend
 COPY demo-site demo-site
