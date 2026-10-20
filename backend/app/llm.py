@@ -55,7 +55,7 @@ async def stream_answer(messages: list[dict]) -> AsyncIterator[str]:
         messages=messages,
         stream=True,
         temperature=0.3,
-        max_tokens=600,
+        max_tokens=1500,  # includes the model's hidden reasoning, see translate_query
     )
     async for chunk in stream:
         if chunk.choices and chunk.choices[0].delta.content:
@@ -77,7 +77,9 @@ async def translate_query(question: str, language: str) -> str | None:
             {"role": "user", "content": question},
         ],
         temperature=0,
-        max_tokens=40,
+        # Reasoning models (deepseek-flash) think before answering and that counts
+        # toward max_tokens: a tight limit leaves an empty answer.
+        max_tokens=400,
     )
     text = (resp.choices[0].message.content or "").strip().strip('"«»').strip()
     return text[:200] or None
