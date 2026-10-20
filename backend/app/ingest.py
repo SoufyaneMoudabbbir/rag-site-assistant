@@ -6,8 +6,9 @@ sense when retrieved on its own.
 """
 
 import io
+import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -30,10 +31,21 @@ class Chunk:
 
 
 @dataclass
+class Product:
+    name: str
+    price: str | None = None
+    currency: str | None = None
+    image: str | None = None
+    url: str | None = None
+    description: str | None = None
+
+
+@dataclass
 class ParsedDocument:
     title: str
     kind: str  # page | pdf | text
     chunks: list[Chunk]
+    products: list[Product] = field(default_factory=list)
 
     @property
     def chars(self) -> int:
@@ -69,11 +81,65 @@ def _make_chunks(title: str, heading: str, body: str, url: str | None) -> list[C
     return [Chunk(heading=heading or title, text=f"{label}\n{part}", url=url) for part in split_long(body)]
 
 
+# ---------------------------------------------------------------- products
+
+
+def _ld_nodes(data):
+    """Every JSON object in a JSON-LD block, including @graph and ItemList entries."""
+    if isinstance(data, list):
+        for item in data:
+            yield from _ld_nodes(item)
+    elif isinstance(data, dict):
+        yield data
+        for value in data.values():
+            if isinstance(value, (dict, list)):
+                yield from _ld_nodes(value)
+
+
+def _first(value):
+    if isinstance(value, list):
+        value = value[0] if value else None
+    if isinstance(value, dict):
+        value = value.get("url") or value.get("contentUrl")
+    return value if isinstance(value, str) else None
+
+
+def extract_products(soup: BeautifulSoup, base_url: str) -> list[Product]:
+    """Products described with schema.org JSON-LD, as Shopify, WooCommerce and most
+    shop platforms publish them: name, price, photo and link."""
+    products: dict[str, Product] = {}
+    for tag in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(tag.string or "")
+        except ValueError:
+            continue
+        for node in _ld_nodes(data):
+            types = node.get("@type")
+            if "Product" not in (types if isinstance(types, list) else [types]) or not node.get("name"):
+                continue
+            offer = node.get("offers") or {}
+            if isinstance(offer, list):
+                offer = offer[0] if offer else {}
+            price = offer.get("price") or offer.get("lowPrice")
+            image, link = _first(node.get("image")), _first(node.get("url"))
+            name = _clean(str(node["name"]))
+            products[name.lower()] = Product(
+                name=name,
+                price=str(price) if price is not None else None,
+                currency=offer.get("priceCurrency"),
+                image=urljoin(base_url, image) if image else None,
+                url=urljoin(base_url, link) if link else base_url,
+                description=_clean(str(node.get("description") or ""))[:300] or None,
+            )
+    return list(products.values())
+
+
 # ---------------------------------------------------------------- HTML
 
 
 def parse_html(html: str, url: str) -> ParsedDocument:
     soup = BeautifulSoup(html, "html.parser")
+    products = extract_products(soup, url)  # before scripts are stripped below
     for tag in soup(["script", "style", "noscript", "svg", "nav", "header", "footer", "form", "iframe", "template"]):
         tag.decompose()
     for tag in soup.select(".demo-banner, [aria-hidden='true'], [hidden]"):
@@ -112,7 +178,7 @@ def parse_html(html: str, url: str) -> ParsedDocument:
         elif not el.find_parent(["p", "li", "blockquote"]):
             buffer.append(el.get_text(" "))
     flush()
-    return ParsedDocument(title=title, kind="page", chunks=chunks)
+    return ParsedDocument(title=title, kind="page", chunks=chunks, products=products)
 
 
 async def fetch_page(url: str) -> ParsedDocument:

@@ -13,6 +13,8 @@ Built for web and marketing agencies: import a client's pages, PDFs and FAQ, pas
 </p>
 
 <p align="center">
+  <img src="docs/screenshots/widget-mobile-products.png" alt="On mobile, an English question about a vanilla candle gets an answer with a product card: photo, price and link" width="260">
+  &nbsp;
   <img src="docs/screenshots/widget-mobile-handoff.png" alt="On mobile, the assistant answers a custom-order request and opens a contact form for the team" width="260">
   &nbsp;
   <img src="docs/screenshots/admin-search.png" alt="Search tester in the dashboard showing which passages the assistant reads, with semantic and keyword scores" width="480">
@@ -23,6 +25,7 @@ Built for web and marketing agencies: import a client's pages, PDFs and FAQ, pas
 **For visitors (the widget)**
 - Answers only from the site's content, in the visitor's language (French content, English question → English answer)
 - Short, streamed replies with links to the exact page section used
+- **Product cards**: when an answer recommends products, they appear under it with photo, price and link. Products are read from the schema.org data that Shopify, WooCommerce and most shops already publish
 - Says when it doesn't know, never invents prices or policies, and declines off-topic or prompt-injection requests
 - Hands off to a human: quotes, custom orders and order problems open a contact form, pre-filled with the question
 - 5.8 KB gzipped, isolated in a Shadow DOM (the host site's CSS can't break it, and it can't break the site), mobile full-screen, keyboard accessible
@@ -165,4 +168,4 @@ A GitHub Pages workflow (`.github/workflows/pages.yml`, run manually) can also p
 
 Built by [Soufyane Moudabbir](https://github.com/SoufyaneMoudabbbir), an AI developer working white-label with agencies.
 
-*Atelier Lumen is a fictional shop created for this demo; any resemblance to a real business is unintended.*
+*Atelier Lumen is a fictional shop created for this demo; any resemblance to a real business is unintended. Product photos from [Unsplash](https://unsplash.com) (Unsplash License).*

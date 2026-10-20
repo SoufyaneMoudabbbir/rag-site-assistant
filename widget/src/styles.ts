@@ -62,6 +62,7 @@ button { font: inherit; cursor: pointer; }
 .head .close:hover { background: rgba(255,255,255,.28); }
 
 .msgs { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: var(--bg); }
+.msgs > * { flex-shrink: 0; } /* a full chat scrolls; it never squeezes cards or bubbles */
 .msg { max-width: 86%; padding: 9px 12px; border-radius: 14px; white-space: normal; overflow-wrap: anywhere; }
 .msg.bot { background: var(--bg2); border-bottom-left-radius: 4px; align-self: flex-start; }
 .msg.user { background: var(--c); color: #fff; border-bottom-right-radius: 4px; align-self: flex-end; }
@@ -72,6 +73,14 @@ button { font: inherit; cursor: pointer; }
 .sources { display: flex; flex-wrap: wrap; gap: 6px; margin-top: -4px; align-self: flex-start; max-width: 86%; }
 .sources a { font-size: 12px; text-decoration: none; color: var(--c); border: 1px solid var(--line); background: var(--bg); padding: 3px 9px; border-radius: 999px; }
 .sources a:hover { border-color: var(--c); }
+.cards { display: flex; gap: 8px; overflow-x: auto; align-self: stretch; margin-top: -2px; padding: 2px 2px 4px; scroll-snap-type: x mandatory; }
+.card { flex: 0 0 148px; scroll-snap-align: start; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--bg); color: var(--text); text-decoration: none; transition: border-color .15s, transform .15s; }
+.card:hover { border-color: var(--c); transform: translateY(-1px); }
+.card img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; background: var(--bg2); }
+.card .info { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px 10px; }
+.card .name { font-weight: 600; font-size: 13px; line-height: 1.3; }
+.card .price { color: var(--c); font-weight: 700; font-size: 13px; }
+.card .cta { font-size: 12px; color: var(--muted); margin-top: 2px; }
 .typing { display: inline-flex; gap: 4px; padding: 12px 14px; }
 .typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: blink 1.2s infinite; }
 .typing span:nth-child(2) { animation-delay: .2s; } .typing span:nth-child(3) { animation-delay: .4s; }

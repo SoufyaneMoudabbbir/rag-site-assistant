@@ -50,3 +50,35 @@ def test_markdown_headings_start_new_chunks():
     doc = parse_text("# Conditions de vente\n\n## Retours\nVous avez trente jours pour retourner un article non utilisé.\n\n## Paiement\nCarte bancaire, PayPal et virement sont acceptés pour toute commande.", "cgv.md")
     assert doc.title == "Conditions de vente"
     assert [c.heading for c in doc.chunks] == ["Retours", "Paiement"]
+
+
+SHOP_HTML = """
+<html><head><title>Shop</title>
+<script type="application/ld+json">
+{"@context": "https://schema.org", "@graph": [
+  {"@type": "WebSite", "name": "Shop"},
+  {"@type": "Product", "name": "Mug en grès", "image": ["/img/mug.jpg"], "url": "/products/mug",
+   "offers": [{"@type": "Offer", "price": 24.5, "priceCurrency": "EUR"}]}
+]}
+</script>
+<script type="application/ld+json">
+{"@type": "ItemList", "itemListElement": [{"@type": "ListItem", "item":
+  {"@type": ["Product"], "name": "Bol", "image": {"url": "https://cdn.example/bol.jpg"},
+   "offers": {"@type": "AggregateOffer", "lowPrice": "12", "priceCurrency": "EUR"}}}]}
+</script>
+<script type="application/ld+json">not json</script>
+</head><body><main><p>Notre boutique de céramique artisanale.</p></main></body></html>
+"""
+
+
+def test_products_are_read_from_schema_org_json_ld():
+    doc = parse_html(SHOP_HTML, "https://shop.example/collections/all")
+    by_name = {p.name: p for p in doc.products}
+    assert set(by_name) == {"Mug en grès", "Bol"}
+    mug = by_name["Mug en grès"]
+    assert (mug.price, mug.currency) == ("24.5", "EUR")
+    assert mug.image == "https://shop.example/img/mug.jpg"
+    assert mug.url == "https://shop.example/products/mug"
+    assert by_name["Bol"].price == "12" and by_name["Bol"].image == "https://cdn.example/bol.jpg"
+    # The JSON-LD itself never ends up in the text passages.
+    assert all("@type" not in c.text for c in doc.chunks)

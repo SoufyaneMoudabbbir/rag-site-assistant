@@ -38,6 +38,18 @@ CREATE TABLE IF NOT EXISTS chunks (
     embedding   BLOB NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_chunks_site ON chunks(site_id);
+CREATE TABLE IF NOT EXISTS products (
+    id          INTEGER PRIMARY KEY,
+    document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    site_id     TEXT NOT NULL,
+    name        TEXT NOT NULL,
+    price       TEXT,
+    currency    TEXT,
+    image       TEXT,
+    url         TEXT,
+    description TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_products_site ON products(site_id);
 CREATE TABLE IF NOT EXISTS conversations (
     id          TEXT PRIMARY KEY,
     site_id     TEXT NOT NULL,

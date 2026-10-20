@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from app import config, db, embeddings, ingest, knowledge, llm, retrieval, seed
+from app import config, db, embeddings, ingest, knowledge, llm, products, retrieval, seed
 from app.security import check_rate, login, mask_email, redact, require_admin, require_viewer
 
 
@@ -140,11 +140,17 @@ async def chat(req: ChatRequest, request: Request):
         history = load_history(conn, conv_id)
         db.add_usage(conn)
 
-    # Short follow-ups ("et en Suisse ?") are searched together with the previous question.
-    last_user = next((m["content"] for m in reversed(history) if m["role"] == "user"), "")
-    query = f"{last_user} {question}" if len(question.split()) < 6 and last_user else question
-    hits = await find_passages(site, query)
+    hits = await find_passages(site, question)
     sources = pick_sources(hits)
+    # A short follow-up ("et en Suisse ?") may only make sense with the previous question:
+    # also search both together. Sources come from the question alone when it found a
+    # strong match itself ("Vous livrez en Belgique ?" after a question about flowers).
+    last_user = next((m["content"] for m in reversed(history) if m["role"] == "user"), "")
+    if last_user and len(question.split()) < 6:
+        together = await run_in_threadpool(retrieval.search, site["id"], f"{last_user} {question}", config.TOP_K)
+        if not sources:
+            sources = pick_sources(together)
+        hits = retrieval.merge(hits, together, k=config.TOP_K)
     messages = llm.build_messages(site, hits, history, question)
 
     async def events():
@@ -165,6 +171,9 @@ async def chat(req: ChatRequest, request: Request):
             print(f"LLM error: {type(e).__name__}: {e}")
             return
         text = "".join(answer).strip()
+        cards = await run_in_threadpool(products.mentioned_products, site["id"], text)
+        if cards:
+            yield sse("products", {"products": cards})
         with db.connect() as conn:
             conn.execute(
                 "INSERT INTO messages (conversation_id, role, content, created_at) VALUES (?, 'user', ?, ?)",

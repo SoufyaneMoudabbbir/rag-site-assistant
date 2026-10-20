@@ -114,3 +114,31 @@ def test_rate_limit(client, fake_llm, monkeypatch):
 def test_redaction_hides_contact_details():
     text = security.redact("Écrivez-moi à jean.dupont@gmail.com ou au 06 12 34 56 78")
     assert "jean.dupont" not in text and "12 34" not in text
+
+
+def test_products_named_in_the_answer_come_as_cards(client, fake_llm):
+    fake_llm.append("Pour la chambre, je vous conseille **Lavande de Provence**, ou Figue et Cèdre si vous aimez le boisé.")
+    _, ev = chat(client, "Quelle bougie pour la chambre ?")
+    cards = ev["products"]["products"]
+    assert [c["name"] for c in cards] == ["Lavande de Provence", "Figue & Cèdre"]  # in the order mentioned
+    assert cards[0]["price"] == "28.00" and cards[0]["currency"] == "EUR"
+    assert cards[0]["image"].endswith("images/lavande-provence.jpg")
+    assert cards[0]["url"].endswith("#lavande-provence")
+
+
+def test_no_cards_when_the_answer_names_no_product(client, fake_llm):
+    fake_llm.append("La livraison en Belgique coûte 9,90 €.")
+    _, ev = chat(client, "Vous livrez en Belgique ?")
+    assert "products" not in ev
+
+
+def test_sources_of_a_short_self_contained_follow_up(client, fake_llm):
+    fake_llm.extend(["Je vous conseille Fleur d'oranger.", "Oui, 9,90 €.", "Oui, aussi 9,90 €."])
+    _, first = chat(client, "Je cherche une bougie à offrir, ma mère aime les fleurs")
+    conv = first["start"]["conversation_id"]
+    # Short, but complete on its own: its sources must not come from the flower question.
+    _, second = chat(client, "Vous livrez en Belgique ?", conv)
+    assert second["start"]["sources"][0]["title"] == "Livraison"
+    # Short and incomplete: still understood thanks to the previous question.
+    _, third = chat(client, "et en Suisse ?", conv)
+    assert third["start"]["sources"] and third["start"]["sources"][0]["title"] == "Livraison"

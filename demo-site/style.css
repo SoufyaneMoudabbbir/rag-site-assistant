@@ -49,7 +49,7 @@ h3 { font-size: 19px; margin: 24px 0 6px; }
   display: grid; grid-template-columns: 1.2fr 1fr; gap: 32px; align-items: center;
   padding: 24px 0 8px;
 }
-.hero-art { background: linear-gradient(160deg, #f1e3cf, #e7cfb2); border-radius: 18px; padding: 40px; }
+.hero-art img { width: 100%; height: auto; aspect-ratio: 7 / 5; object-fit: cover; border-radius: 18px; }
 .btn {
   display: inline-block; margin-top: 12px;
   padding: 11px 20px; border-radius: 999px;
@@ -64,7 +64,7 @@ h3 { font-size: 19px; margin: 24px 0 6px; }
 
 .products { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px; }
 .product { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
-.product .art { padding: 22px 50px; }
+.product .art { width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; background: #efe4d6; }
 .product .body { padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .product h3 { margin: 0; }
 .product .notes { color: var(--muted); font-size: 14.5px; }
@@ -86,5 +86,4 @@ footer.site { border-top: 1px solid var(--line); padding: 28px 16px; text-align:
 
 @media (max-width: 760px) {
   .hero, .values, .info-grid { grid-template-columns: 1fr; }
-  .hero-art { padding: 24px 60px; }
 }

@@ -20,8 +20,12 @@ def add_document(site_id: str, doc: ParsedDocument, source: str) -> dict:
             "INSERT INTO chunks (document_id, site_id, heading, url, text, embedding) VALUES (?, ?, ?, ?, ?, ?)",
             [(doc_id, site_id, c.heading, c.url, c.text, embeddings.to_blob(v)) for c, v in zip(doc.chunks, vectors)],
         )
+        conn.executemany(
+            "INSERT INTO products (document_id, site_id, name, price, currency, image, url, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [(doc_id, site_id, pr.name, pr.price, pr.currency, pr.image, pr.url, pr.description) for pr in doc.products],
+        )
     retrieval.invalidate(site_id)
-    return {"id": doc_id, "title": doc.title, "chunks": len(doc.chunks), "chars": doc.chars}
+    return {"id": doc_id, "title": doc.title, "chunks": len(doc.chunks), "chars": doc.chars, "products": len(doc.products)}
 
 
 def delete_document(doc_id: int) -> str | None:

@@ -35,7 +35,9 @@ def seed() -> None:
                  DEMO_SITE["instructions"], db.now()),
             )
         has_docs = conn.execute("SELECT 1 FROM documents WHERE site_id = ?", (DEMO_SITE["id"],)).fetchone()
-    if has_docs:
+        # Databases created before product cards existed: import the pages again to get them.
+        has_products = conn.execute("SELECT 1 FROM products WHERE site_id = ?", (DEMO_SITE["id"],)).fetchone()
+    if has_docs and has_products:
         return
     for page in DEMO_PAGES:
         path = config.DEMO_SITE_DIR / page
